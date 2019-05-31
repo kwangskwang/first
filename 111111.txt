@@ -1,0 +1,5 @@
+
+select * 
+from sales s, rental r
+where S.serial_no = r.serial_no 
+and to_char(r.order_date,'YYYYMMDD') like '2019%'

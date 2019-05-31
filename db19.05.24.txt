@@ -1,0 +1,162 @@
+SELECT *from t_orderbasket
+
+1단계
+더미테이블이용해서 데이터의 로우 수를 3배수로 만듦
+1번일때 - 날짜별
+2번일때 - 총계
+3번일때 - 소계
+
+SELECT rownum rno FROM dept WHERE rownum <4
+
+카타시안곱 = cross join 
+:기존 테이블의 데이터를 복제하는데 사용할 수 있다.
+복제를 왜 해야되지?
+- 테이블 그대로가 아닌 업무담당자의 요구사항에 맞게 출력해야되니까?
+- 분석함수를 사용할 수 없는 환경일때
+  NoSQL제품 - 테이블 없다.
+- 통계자료, 분기별자료, 반기별자료, 년별, 막대그래프, 파이그래프
+
+- 데이터 복제하였다.   
+  같은정보가 두개 존재
+  1일때 - 날짜별계산
+  2일때 - 총계
+  
+- DECODE(rno,1,a.indate_vc,2,'총계',3,'소계')
+
+FROM 절을 제외한 모든 곳에 사용
+
+GROUP BY에 사용할 때
+
+GROUP BY DECODE(rno,1,a.indate_vc,2,'총계',3,'소계')
+
+SELECT deptno FROM emp
+GROUP BY deptno,ename
+
+ORDER BY에 사용 할 때
+
+ORDER BY DECODE(rno,1,a.indate_vc,2,'총계',3,'소계')
+
+SELECT * FROM temp
+ORDER BY emp_id asc, lev desc
+
+DECODE(rno,1,a.indate_vc,2,'총계',3,'소계')
+
+물품구분 - 발주하겠다
+
+DECODE(rno,3,gubun_vc||'계',1,gubun_vc) as "물품구분"
+
+SUM(qty_nu)||'개' as "판매갯수"
+
+단가*수량
+
+SUM(qty_nu*price_nu)||'원' as "판매가격"
+
+SELECT 
+      DECODE(rno,1,'총합',2,a.indate_vc||'계',a.indate_vc)
+     ,DECODE(rno,3,gubun_vc||'계',4,gubun_vc) as "물품구분"
+     ,DECODE(rno,4,a.name_vc) as "물품명"
+     ,SUM(qty_nu)||'개' as "판매갯수"
+     ,SUM(qty_nu*price_nu)||'원' as "판매가격"
+    FROM t_orderbasket A
+        ,(SELECT rownum rno FROM dept WHERE rownum <5) B  
+GROUP BY DECODE(rno,1,'총합',2,a.indate_vc||'계',a.indate_vc)
+          ,DECODE(rno,3,gubun_vc||'계',4,gubun_vc)
+          ,DECODE(rno,4,a.name_vc)
+ORDER BY DECODE(rno,1,'총합',2,a.indate_vc||'계',a.indate_vc)
+
+ROLLUP은 GROUP BY절에 사용되면 GROUP의 순서에 의한
+멀티 레벨의 소계 및 합계를 구해주는 함수
+ROLLUP이나 CUBE를 다루면서는 GROUPING함수를 종종 볼 수 있는데
+이것은 모든 값의 SET을 표현함에 있어 NULL이면 1아니면 0을 RETURN함으로써 
+소계와 총계 부분을 나타내주는 역할을 함.
+
+만일 가게 판매현황을 날짜와 물품분류 목록을 가지고 한다면
+
+SELECT indate_vc, gubun_vc, sum(qty_nu*price_nu)||'원'
+FROM t_orderbasket
+GROUP BY ROLLUP(indate_vc, gubun_vc)
+
+SELECT indate_vc, gubun_vc, name_vc
+        ,sum(qty_nu*price_nu)||'원'
+FROM t_orderbasket
+GROUP BY ROLLUP(indate_vc, gubun_vc,name_vc)
+
+SELECT indate_vc, gubun_vc 
+     ,sum(qty_nu)
+     ,sum(qty_nu*price_nu)||'원'
+FROM t_orderbasket
+GROUP BY CUBE(indate_vc, gubun_vc)
+ORDER BY indate_vc
+
+
+
+
+
+
+SELECT decode(dname,null,'총계',dname) as dname
+       , sum(decode(emp.job,'CLERK',sal)) as CLERK
+       , sum(decode(emp.job,'MANAGER',sal)) as MANAGER 
+       , sum(decode(emp.job,'CLERK',null,'MANAGER',null,sal)) as ETC
+       , sum(sal) as DEPT_SAL
+FROM emp, dept
+where emp.deptno = dept.deptno
+GROUP BY ROLLUP (dname)
+       
+SELECT deptno
+   ,sum(decode(job,'CLERK',sal,null)) clerk
+   ,sum(decode(job,'MANAGER',sal,null)) manager
+   ,sum(decode(job,'CLERK',null,'MANAGER',null,sal)) etc
+    FROM emp
+GROUP BY deptno
+
+
+
+SELECT
+        B.dname, clerk, manager, etc, dept_sal
+        FROM(
+SELECT deptno
+       , sum(decode(job,'CLERK',sal)) as CLERK
+       , sum(decode(job,'MANAGER',sal)) as MANAGER 
+       , sum(decode(job,'CLERK',null,'MANAGER',null,sal)) as ETC
+       , sum(sal) dept_sal
+    FROM emp
+GROUP BY deptno
+         )A, dept B
+WHERE A.deptno=B.deptno
+
+SELECT '1' no FROM dual
+UNION ALL
+SELECT '2' FROM dual
+
+DECODE(BB.no,'1',dname,'총계')
+
+
+
+SELECT
+  DECODE(BB.no,'1',dname,'총계') "부서명"
+  ,SUM(AA.clerk) clerk
+  ,SUM(AA.manager) manager
+  ,SUM(AA.etc) etc
+  ,SUM(AA.dept_sal) dept_sal
+FROM (
+    SELECT
+        B.dname, clerk, manager, etc, dept_sal
+    FROM(
+    SELECT deptno
+       , sum(decode(job,'CLERK',sal)) as CLERK
+       , sum(decode(job,'MANAGER',sal)) as MANAGER 
+       , sum(decode(job,'CLERK',null,'MANAGER',null,sal)) as ETC
+       , sum(sal) dept_sal
+    FROM emp
+GROUP BY deptno
+         )A, dept B
+WHERE A.deptno=B.deptno
+     )AA,
+     (
+     SELECT '1' no FROM dual
+     UNION ALL
+     SELECT '2' FROM dual
+     )BB
+GROUP BY DECODE(BB.no,'1',dname,'총계')
+ORDER BY "부서명"
+
